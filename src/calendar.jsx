@@ -1,5 +1,5 @@
 import React from 'react';
-import styled from 'styled-components';
+import styled, { keyframes } from 'styled-components';
 import startOfMonth from 'date-fns/start_of_month';
 import getDay from 'date-fns/get_day';
 import getDate from 'date-fns/get_date';
@@ -10,6 +10,7 @@ import isSameMonth from 'date-fns/is_same_month';
 import format from 'date-fns/format';
 import getDaysInMonth from 'date-fns/get_days_in_month';
 import { Link } from 'react-router-dom';
+import { connect } from 'react-redux';
 
 const generateDays = currentMonth => {
   let days = [];
@@ -58,9 +59,23 @@ export class Calendar extends React.Component {
     this.setState({ currentMonth, days, rows });
   }
 
+  calculateColor = day => {
+    const dayString = format(day, 'YYYY-MM-DD');
+    const transparentColor = 'transparent';
+    const colorFn = pain => {
+      const startColor = 120 - Math.ceil(pain / 11 * 120);
+      return `hsl(${startColor}, 100%, 50%)`;
+    };
+
+    const entry = this.props.entries.find(e => e.date === dayString);
+    if (entry) return colorFn(entry.painLevel);
+    return transparentColor;
+  };
+
   render() {
     const { days, rows } = this.state;
-    const { dayKey, calculateColor } = this.props;
+    const { dayKey, entries } = this.props;
+    console.log(entries);
 
     return (
       <Container>
@@ -86,7 +101,8 @@ export class Calendar extends React.Component {
               key={day.key}
               date={day.date}
               show={day.show}
-              color={calculateColor(day.date)}
+              color={this.calculateColor(day.date)}
+              selected={format(day.date, 'YYYY-MM-DD') === dayKey}
             />
           ))}
         </Grid>
@@ -95,9 +111,18 @@ export class Calendar extends React.Component {
   }
 }
 
-const Day = ({ date, show, color }) => {
+function mapStateToProps(state, ownProps) {
+  console.log(state);
+  return {
+    entries: state,
+  };
+}
+
+export default connect(mapStateToProps)(Calendar);
+
+const Day = ({ date, show, color, selected }) => {
   return (
-    <DayLink to={`/${format(date, 'YYYY-MM-DD')}`}>
+    <DayLink selected={selected} to={`/${format(date, 'YYYY-MM-DD')}`}>
       <span>{getDate(date)}</span>
       <Dot color={color} />
     </DayLink>
@@ -134,6 +159,20 @@ const Entry = styled.div`
   font-weight: bold;
 `;
 
+const blink = keyframes`
+  0% {
+    border: 1px solid rgba(117, 117, 117, 0);
+  }
+
+  50% {
+    border: 1px solid rgba(117, 117, 117, 1);
+  }
+  
+  100% {
+    border: 1px solid rgba(117, 117, 117, 0);
+  }
+`;
+
 const DayLink = styled(Link)`
   display: flex;
   flex-direction: column;
@@ -143,6 +182,13 @@ const DayLink = styled(Link)`
   cursor: pointer;
   text-decoration: none;
   color: black;
+  border: ${props =>
+    props.selected ? '1px solid blue' : '1px solid transparent'};
+
+  &:hover {
+    animation: ${props =>
+      props.selected ? 'none' : `${blink} 1s linear infinite`};
+  }
 `;
 
 const MonthLink = styled(Link)`

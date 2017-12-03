@@ -4,13 +4,19 @@ import Router from 'react-router-dom/BrowserRouter';
 import { Route, Redirect } from 'react-router-dom';
 import format from 'date-fns/format';
 import styled from 'styled-components';
+import { Provider, connect } from 'react-redux';
+import { createStore } from 'redux';
 
 import fakeData from './FAKE_DATA';
-import { Calendar } from './calendar';
+import Calendar from './calendar';
+import { DayForm } from './day-form';
+import { entries, loadData } from './dux';
+
+let store = createStore(entries);
 
 const Empty = ({ children }) => children;
 
-const Routes = ({ calculateColor }) => (
+const Routes = () => (
   <Empty>
     <Route
       path="/"
@@ -21,11 +27,8 @@ const Routes = ({ calculateColor }) => (
       path="/:dayKey"
       render={({ match, locaton }) => (
         <Container>
-          <Calendar
-            dayKey={match.params.dayKey}
-            calculateColor={calculateColor}
-          />
-          <Box>{match.params.dayKey}</Box>
+          <Calendar dayKey={match.params.dayKey} />
+          <DayForm />
           <Box />
         </Container>
       )}
@@ -42,22 +45,9 @@ class App extends React.Component {
   componentWillMount() {
     localforage
       .getItem('data')
-      .then(data => this.setState({ data: data ? data : fakeData }))
+      .then(data => this.props.dispatch(loadData(data || fakeData.entries)))
       .catch(err => this.setState({ err }));
   }
-
-  calculateColor = day => {
-    const dayString = format(day, 'YYYY-MM-DD');
-    const transparentColor = 'transparent';
-    const colorFn = pain => {
-      const startColor = 120 - Math.ceil(pain / 11 * 120);
-      return `hsl(${startColor}, 100%, 50%)`;
-    };
-
-    const entry = this.state.data.entries.find(e => e.date === dayString);
-    if (entry) return colorFn(entry.painLevel);
-    return transparentColor;
-  };
 
   render() {
     const { err, data } = this.state;
@@ -66,10 +56,10 @@ class App extends React.Component {
       return <pre>{err.message}</pre>;
     }
 
-    return !data ? null : (
+    return (
       <Router>
         <div>
-          <Routes calculateColor={this.calculateColor} />
+          <Routes />
           <div>{JSON.stringify(data)}</div>
         </div>
       </Router>
@@ -77,7 +67,17 @@ class App extends React.Component {
   }
 }
 
-export default App;
+const ConnectedApp = connect()(App);
+
+function AppWrapper() {
+  return (
+    <Provider store={store}>
+      <ConnectedApp />
+    </Provider>
+  );
+}
+
+export default AppWrapper;
 
 const Container = styled.div`
   display: grid;
